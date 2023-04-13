@@ -25,17 +25,19 @@ namespace Dapper.Contrib.Extensions
         public static async Task<T> GetAsync<T>(this IDbConnection connection, dynamic id, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
             var type = typeof(T);
+            var sqlAdapter = GetFormatter(connection);
+
             if (!GetQueries.TryGetValue(type.TypeHandle, out string sql))
             {
                 var key = GetSingleKey<T>(nameof(GetAsync));
                 var name = GetTableName(type);
 
-                sql = $"SELECT * FROM {name} WHERE {key.Name} = @id";
+                sql = $"SELECT * FROM {name} WHERE {key.Name} = {sqlAdapter.ParameterPrefix}id";
                 GetQueries[type.TypeHandle] = sql;
             }
 
             var dynParams = new DynamicParameters();
-            dynParams.Add("@id", id);
+            dynParams.Add($"{sqlAdapter.ParameterPrefix}id", id);
 
             if (!type.IsInterface)
                 return (await connection.QueryAsync<T>(sql, dynParams, transaction, commandTimeout).ConfigureAwait(false)).FirstOrDefault();
@@ -181,7 +183,7 @@ namespace Dapper.Contrib.Extensions
             for (var i = 0; i < allPropertiesExceptKeyAndComputed.Count; i++)
             {
                 var property = allPropertiesExceptKeyAndComputed[i];
-                sbParameterList.AppendFormat("@{0}", property.Name);
+                sbParameterList.AppendFormat("{0}{1}", sqlAdapter.ParameterPrefix, property.Name);
                 if (i < allPropertiesExceptKeyAndComputed.Count - 1)
                     sbParameterList.Append(", ");
             }

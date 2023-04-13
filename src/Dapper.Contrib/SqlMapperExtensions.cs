@@ -170,18 +170,19 @@ namespace Dapper.Contrib.Extensions
         public static T Get<T>(this IDbConnection connection, dynamic id, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
             var type = typeof(T);
+            var sqlAdapter = GetFormatter(connection);
 
             if (!GetQueries.TryGetValue(type.TypeHandle, out string sql))
             {
                 var key = GetSingleKey<T>(nameof(Get));
                 var name = GetTableName(type);
 
-                sql = $"select * from {name} where {key.Name} = @id";
+                sql = $"select * from {name} where {key.Name} = {sqlAdapter.ParameterPrefix}id";
                 GetQueries[type.TypeHandle] = sql;
             }
 
             var dynParams = new DynamicParameters();
-            dynParams.Add("@id", id);
+            dynParams.Add($"{sqlAdapter.ParameterPrefix}id", id);
 
             T obj;
 
@@ -363,7 +364,7 @@ namespace Dapper.Contrib.Extensions
             for (var i = 0; i < allPropertiesExceptKeyAndComputed.Count; i++)
             {
                 var property = allPropertiesExceptKeyAndComputed[i];
-                sbParameterList.AppendFormat("@{0}", property.Name);
+                sbParameterList.AppendFormat("{0}{1}", adapter.ParameterPrefix, property.Name);
                 if (i < allPropertiesExceptKeyAndComputed.Count - 1)
                     sbParameterList.Append(", ");
             }
@@ -774,6 +775,11 @@ namespace Dapper.Contrib.Extensions
 public partial interface ISqlAdapter
 {
     /// <summary>
+    /// Defines the parameter prefix.
+    /// </summary>
+    string ParameterPrefix { get; }
+
+    /// <summary>
     /// Inserts <paramref name="entityToInsert"/> into the database, returning the Id of the row created.
     /// </summary>
     /// <param name="connection">The connection to use.</param>
@@ -806,6 +812,11 @@ public partial interface ISqlAdapter
 /// </summary>
 public partial class SqlServerAdapter : ISqlAdapter
 {
+    /// <summary>
+    /// Defines the parameter prefix.
+    /// </summary>
+    public string ParameterPrefix => "@";
+
     /// <summary>
     /// Inserts <paramref name="entityToInsert"/> into the database, returning the Id of the row created.
     /// </summary>
@@ -853,7 +864,7 @@ public partial class SqlServerAdapter : ISqlAdapter
     /// <param name="columnName">The column name.</param>
     public void AppendColumnNameEqualsValue(StringBuilder sb, string columnName)
     {
-        sb.AppendFormat("[{0}] = @{1}", columnName, columnName);
+        sb.AppendFormat("[{0}] = {1}{2}", columnName, ParameterPrefix, columnName);
     }
 }
 
@@ -862,6 +873,11 @@ public partial class SqlServerAdapter : ISqlAdapter
 /// </summary>
 public partial class SqlCeServerAdapter : ISqlAdapter
 {
+    /// <summary>
+    /// Defines the parameter prefix.
+    /// </summary>
+    public string ParameterPrefix => "@";
+
     /// <summary>
     /// Inserts <paramref name="entityToInsert"/> into the database, returning the Id of the row created.
     /// </summary>
@@ -909,7 +925,7 @@ public partial class SqlCeServerAdapter : ISqlAdapter
     /// <param name="columnName">The column name.</param>
     public void AppendColumnNameEqualsValue(StringBuilder sb, string columnName)
     {
-        sb.AppendFormat("[{0}] = @{1}", columnName, columnName);
+        sb.AppendFormat("[{0}] = {1}{2}", columnName, ParameterPrefix, columnName);
     }
 }
 
@@ -918,6 +934,11 @@ public partial class SqlCeServerAdapter : ISqlAdapter
 /// </summary>
 public partial class MySqlAdapter : ISqlAdapter
 {
+    /// <summary>
+    /// Defines the parameter prefix.
+    /// </summary>
+    public string ParameterPrefix => "@";
+
     /// <summary>
     /// Inserts <paramref name="entityToInsert"/> into the database, returning the Id of the row created.
     /// </summary>
@@ -964,7 +985,7 @@ public partial class MySqlAdapter : ISqlAdapter
     /// <param name="columnName">The column name.</param>
     public void AppendColumnNameEqualsValue(StringBuilder sb, string columnName)
     {
-        sb.AppendFormat("`{0}` = @{1}", columnName, columnName);
+        sb.AppendFormat("`{0}` = {1}{2}", columnName, ParameterPrefix, columnName);
     }
 }
 
@@ -973,6 +994,11 @@ public partial class MySqlAdapter : ISqlAdapter
 /// </summary>
 public partial class PostgresAdapter : ISqlAdapter
 {
+    /// <summary>
+    /// Defines the parameter prefix.
+    /// </summary>
+    public string ParameterPrefix => "@";
+
     /// <summary>
     /// Inserts <paramref name="entityToInsert"/> into the database, returning the Id of the row created.
     /// </summary>
@@ -1040,7 +1066,7 @@ public partial class PostgresAdapter : ISqlAdapter
     /// <param name="columnName">The column name.</param>
     public void AppendColumnNameEqualsValue(StringBuilder sb, string columnName)
     {
-        sb.AppendFormat("\"{0}\" = @{1}", columnName, columnName);
+        sb.AppendFormat("\"{0}\" = {1}{2}", columnName, ParameterPrefix, columnName);
     }
 }
 
@@ -1049,6 +1075,11 @@ public partial class PostgresAdapter : ISqlAdapter
 /// </summary>
 public partial class SQLiteAdapter : ISqlAdapter
 {
+    /// <summary>
+    /// Defines the parameter prefix.
+    /// </summary>
+    public string ParameterPrefix => "@";
+
     /// <summary>
     /// Inserts <paramref name="entityToInsert"/> into the database, returning the Id of the row created.
     /// </summary>
@@ -1093,7 +1124,7 @@ public partial class SQLiteAdapter : ISqlAdapter
     /// <param name="columnName">The column name.</param>
     public void AppendColumnNameEqualsValue(StringBuilder sb, string columnName)
     {
-        sb.AppendFormat("\"{0}\" = @{1}", columnName, columnName);
+        sb.AppendFormat("\"{0}\" = {1}{2}", columnName, ParameterPrefix, columnName);
     }
 }
 
@@ -1102,6 +1133,11 @@ public partial class SQLiteAdapter : ISqlAdapter
 /// </summary>
 public partial class FbAdapter : ISqlAdapter
 {
+    /// <summary>
+    /// Defines the parameter prefix.
+    /// </summary>
+    public string ParameterPrefix => "@";
+
     /// <summary>
     /// Inserts <paramref name="entityToInsert"/> into the database, returning the Id of the row created.
     /// </summary>
@@ -1150,6 +1186,6 @@ public partial class FbAdapter : ISqlAdapter
     /// <param name="columnName">The column name.</param>
     public void AppendColumnNameEqualsValue(StringBuilder sb, string columnName)
     {
-        sb.AppendFormat("{0} = @{1}", columnName, columnName);
+        sb.AppendFormat("{0} = {1}{2}", columnName, ParameterPrefix, columnName);
     }
 }
