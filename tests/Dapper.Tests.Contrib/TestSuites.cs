@@ -1,5 +1,6 @@
 ﻿using Microsoft.Data.Sqlite;
 using MySqlConnector;
+using Sap.Data.SQLAnywhere;
 using System;
 using System.Data;
 using System.Data.SqlClient;
@@ -141,6 +142,42 @@ namespace Dapper.Tests.Contrib
         }
     }
 
+    public class SqlAnywhereTestSuite : TestSuite
+    {
+        public static string ConnectionString { get; } =
+            GetConnectionString("SqlAnywhereConnectionString", "Host=localhost:2638;Server=.;UserId=.;Password=.;DatabaseName=test");
+
+        public override IDbConnection GetConnection() => new SAConnection(ConnectionString);
+
+        static SqlAnywhereTestSuite()
+        {
+            using (var connection = new SAConnection(ConnectionString))
+            {
+                void dropTable(string name) => connection.Execute($"DROP TABLE IF EXISTS \"{name}\";");
+                connection.Open();
+                dropTable("Stuff");
+                connection.Execute("CREATE TABLE Stuff (TheId int not null IDENTITY PRIMARY KEY, Name nvarchar(100) not null, Created DateTime null);");
+                dropTable("People");
+                connection.Execute("CREATE TABLE People (Id int not null IDENTITY PRIMARY KEY, Name nvarchar(100) not null);");
+                dropTable("Users");
+                connection.Execute("CREATE TABLE Users (Id int not null IDENTITY PRIMARY KEY, Name nvarchar(100) not null, Age int not null);");
+                dropTable("Automobiles");
+                connection.Execute("CREATE TABLE Automobiles (Id int not null IDENTITY PRIMARY KEY, Name nvarchar(100) not null);");
+                dropTable("Results");
+                connection.Execute("CREATE TABLE Results (Id int not null IDENTITY PRIMARY KEY, Name nvarchar(100) not null, `Order` int not null);");
+                dropTable("ObjectX");
+                connection.Execute("CREATE TABLE ObjectX (ObjectXId nvarchar(100) not null, Name nvarchar(100) not null);");
+                dropTable("ObjectY");
+                connection.Execute("CREATE TABLE ObjectY (ObjectYId int not null, Name nvarchar(100) not null);");
+                dropTable("ObjectZ");
+                connection.Execute("CREATE TABLE ObjectZ (Id int not null, Name nvarchar(100) not null);");
+                dropTable("GenericType");
+                connection.Execute("CREATE TABLE GenericType (Id nvarchar(100) not null, Name nvarchar(100) not null);");
+                dropTable("NullableDates");
+                connection.Execute("CREATE TABLE NullableDates (Id int not null IDENTITY PRIMARY KEY, DateValue DateTime);");
+            }
+        }
+    }
 
 #if SQLCE
     public class SqlCETestSuite : TestSuite
