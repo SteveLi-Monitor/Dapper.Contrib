@@ -594,12 +594,12 @@ public partial class SqlAnywhereAdapter
     /// <returns>The Id of the row created.</returns>
     public async Task<long> InsertAsync(IDbConnection connection, IDbTransaction transaction, int? commandTimeout, string tableName, string columnList, string parameterList, IEnumerable<PropertyInfo> keyProperties, object entityToInsert)
     {
-        var cmd = $"INSERT INTO {tableName} ({columnList}) VALUES ({parameterList})";
-        await connection.ExecuteAsync(cmd, entityToInsert, transaction, commandTimeout).ConfigureAwait(false);
-        var r = (await connection.QueryAsync<dynamic>("SELECT @@IDENTITY id", transaction: transaction, commandTimeout: commandTimeout).ConfigureAwait(false)).ToList();
+        var cmd = $"INSERT INTO {tableName} ({columnList}) VALUES ({parameterList}); SELECT @@IDENTITY id";
+        var multi = await connection.QueryMultipleAsync(cmd, entityToInsert, transaction, commandTimeout).ConfigureAwait(false);
+        var r = (await multi.ReadFirstAsync().ConfigureAwait(false)).id;
 
-        if (r[0]?.id == null) return 0;
-        var id = (long)r[0].id;
+        if (r == null) return 0;
+        var id = (long)r;
 
         var pi = keyProperties as PropertyInfo[] ?? keyProperties.ToArray();
         if (pi.Length == 0) return id;
